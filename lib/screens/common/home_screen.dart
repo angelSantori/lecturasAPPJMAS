@@ -2,6 +2,8 @@ import 'package:app_lecturas_jmas/screens/lectEnviar/details_lecturas.dart';
 import 'package:flutter/material.dart';
 import 'package:app_lecturas_jmas/configs/controllers/lectura_enviar_controller.dart';
 import 'package:app_lecturas_jmas/configs/services/auth_service.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,12 +18,14 @@ class _HomeScreenState extends State<HomeScreen> {
   List<LELista> _lecturas = [];
   bool _isLoading = true;
   String? _userName;
+  bool _isScanning = false;
 
   @override
   void initState() {
     super.initState();
     _cargarLecturas();
     _cargarUsuario();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   Future<void> _cargarUsuario() async {
@@ -93,6 +97,200 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Método para buscar lectura por leId
+  Future<void> _buscarLecturaPorLeId(int leId) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final lecturasEncontradas = await _lecturaController.getLectEnviarByLeId(
+        leId,
+      );
+
+      if (lecturasEncontradas.isNotEmpty) {
+        // Filtrar solo las lecturas pendientes (leEstado == false)
+        final lecturasPendientes = lecturasEncontradas
+            .where((lectura) => lectura.leEstado == false)
+            .toList();
+
+        if (lecturasPendientes.isNotEmpty) {
+          // Navegar a la primera lectura pendiente encontrada
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  DetailsLecturasScreen(lectura: lecturasPendientes.first),
+            ),
+          ).then((actualizado) {
+            if (actualizado == true) {
+              _cargarLecturas();
+            }
+          });
+        } else {
+          _mostrarMensaje('No hay lecturas pendientes para este ID');
+        }
+      } else {
+        _mostrarMensaje('No se encontró ninguna lectura con ID: $leId');
+      }
+    } catch (e) {
+      print('Error al buscar lectura por leId: $e');
+      _mostrarMensaje('Error al buscar la lectura');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _mostrarMensaje(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
+    );
+  }
+
+  // Método para abrir el escáner de código de barras
+  void _abrirEscaner() {
+    Navigator.pop(context); // Cerrar el drawer primero
+
+    setState(() {
+      _isScanning = true;
+    });
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Center(
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Text('Escanear Código de Barras'),
+              backgroundColor: Colors.blue.shade900,
+              foregroundColor: Colors.white,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _isScanning = false;
+                    });
+                  },
+                ),
+              ],
+            ),
+            body: Stack(
+              children: [
+                MobileScanner(
+                  controller: MobileScannerController(
+                    formats: [BarcodeFormat.all],
+                    returnImage: false,
+                  ),
+                  onDetect: (capture) {
+                    final List<Barcode> barcodes = capture.barcodes;
+
+                    if (barcodes.isNotEmpty) {
+                      final String codigo = barcodes.first.rawValue ?? '';
+
+                      // Intentar parsear como número (leId)
+                      final leId = int.tryParse(codigo);
+
+                      if (leId != null) {
+                        Navigator.pop(context); // Cerrar el escáner
+                        setState(() {
+                          _isScanning = false;
+                        });
+
+                        // Buscar la lectura
+                        _buscarLecturaPorLeId(leId);
+                      } else {
+                        _mostrarMensaje('Código no válido: $codigo');
+                      }
+                    }
+                  },
+                ),
+                // Overlay para ayudar al usuario
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Enfoca el código de barras',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white, width: 2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ).then((_) {
+      setState(() {
+        _isScanning = false;
+      });
+    });
+  }
+
+  // Método para buscar manualmente por ID
+  void _buscarManual() {
+    Navigator.pop(context); // Cerrar el drawer
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        final TextEditingController controller = TextEditingController();
+
+        return AlertDialog(
+          title: const Text('Buscar por ID'),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Ingresa el ID de lectura',
+              hintText: 'Ej: 12345',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                final leId = int.tryParse(controller.text);
+                if (leId != null) {
+                  Navigator.pop(context);
+                  _buscarLecturaPorLeId(leId);
+                } else {
+                  _mostrarMensaje('Ingresa un ID válido');
+                }
+              },
+              child: const Text('Buscar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildDrawer() {
     return Drawer(
       child: Column(
@@ -135,6 +333,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.pop(context); // Cerrar el drawer
                   },
                 ),
+
+                // Nueva opción para escanear código de barras
+                ListTile(
+                  leading: const Icon(Icons.qr_code_scanner),
+                  title: const Text('Escanear Código'),
+                  onTap: _abrirEscaner,
+                ),
+
+                // Nueva opción para búsqueda manual
+                ListTile(
+                  leading: const Icon(Icons.search),
+                  title: const Text('Buscar por ID'),
+                  onTap: _buscarManual,
+                ),
+
                 ListTile(
                   leading: const Icon(Icons.refresh),
                   title: const Text('Actualizar'),
