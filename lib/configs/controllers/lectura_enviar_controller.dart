@@ -62,6 +62,32 @@ class LecturaEnviarController {
     }
   }
 
+  Future<List<LELista>> getLectEnviarByLeId(int leId) async {
+    try {
+      final IOClient client = _createHttpClient();
+      final response = await client.get(
+        Uri.parse('${_authService.apiURL}/LectEnviars/leId/$leId'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = json.decode(response.body);
+        return jsonData.map((listLE) => LELista.fromMap(listLE)).toList();
+      } else if (response.statusCode == 404) {
+        print('No se encontraron lecturas con leId: $leId');
+        return [];
+      } else {
+        print(
+          'Error getLectEnviarByLeId | Ife | LEController: ${response.statusCode} - ${response.body}',
+        );
+        return [];
+      }
+    } catch (e) {
+      print('Error getLectEnviarByLeId | Try | LEController: $e');
+      return [];
+    }
+  }
+
   Future<bool> editLectEnviar(LecturaEnviar lectEnviar) async {
     try {
       final IOClient client = _createHttpClient();
