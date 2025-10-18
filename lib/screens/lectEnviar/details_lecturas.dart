@@ -4,7 +4,7 @@ import 'package:app_lecturas_jmas/configs/controllers/problemas_lectura_controll
 import 'package:app_lecturas_jmas/configs/services/auth_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
-import 'package:flutter/services.dart'; // Añadir este import
+import 'package:flutter/services.dart';
 
 class DetailsLecturasScreen extends StatefulWidget {
   final LELista lectura;
@@ -30,12 +30,12 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
   String? _fotoBase64;
   bool _isLoading = true;
   bool _isGuardando = false;
+  final PageController _pageController = PageController(viewportFraction: 0.9);
 
   @override
   void initState() {
     super.initState();
     _cargarProblemasLectura();
-    // Ocultar botones de navegación
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
@@ -43,6 +43,7 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
   void dispose() {
     _lecturaActualController.dispose();
     _lecturaAnteriorController.dispose();
+    _pageController.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -52,7 +53,6 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
       final problemas = await _problemasController.listProblmeasLectura();
       setState(() {
         _problemas = problemas;
-        // Seleccionar por defecto el problema con id 1
         _problemaSeleccionado = problemas.firstWhere(
           (problema) => problema.idProblema == 1,
           orElse: () => problemas.first,
@@ -154,7 +154,8 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
 
       // Determinar lectura anterior según el problema
       int? lecturaAnteriorFinal;
-      if (_problemaSeleccionado!.idProblema == 1) {
+      if (_problemaSeleccionado!.idProblema == 1 ||
+          _problemaSeleccionado!.idProblema != 27) {
         lecturaAnteriorFinal = widget.lectura.leLecturaAnterior;
       } else if (_problemaSeleccionado!.idProblema == 27) {
         lecturaAnteriorFinal = int.parse(_lecturaAnteriorController.text);
@@ -225,17 +226,326 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
             titulo,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 14,
+              fontSize: 16,
               color: Colors.grey,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             valor,
-            style: const TextStyle(fontSize: 16, color: Colors.black87),
+            style: const TextStyle(fontSize: 20, color: Colors.black87),
           ),
           const Divider(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPrimeraPantalla() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Información de la lectura centrada
+          Card(
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  // Icono principal
+                  Icon(Icons.water_drop, size: 60, color: Colors.blue.shade900),
+                  const SizedBox(height: 10),
+
+                  _buildInfoItem(
+                    'Número de Medidor',
+                    widget.lectura.leNumeroMedidor,
+                  ),
+                  _buildInfoItem('Cuenta', widget.lectura.leCuenta),
+                  _buildInfoItem('Dirección', widget.lectura.leDireccion),
+                  _buildInfoItem(
+                    'ID - Nombre',
+                    '${widget.lectura.leId?.toString()} - ${widget.lectura.leNombre}',
+                  ),
+                  _buildInfoItem('Periodo', widget.lectura.lePeriodo),
+                  _buildInfoItem('Ruta', widget.lectura.leRuta),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSegundaPantalla() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Selector de problemas de lectura
+                  Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Problema de Lectura',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<ProblemasLectura>(
+                            value: _problemaSeleccionado,
+                            isExpanded: true,
+                            items: _problemas.map((problema) {
+                              return DropdownMenuItem(
+                                value: problema,
+                                child: Text(
+                                  '${problema.idProblema} - ${problema.plDescripcion}',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: TextStyle(fontSize: 20),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (ProblemasLectura? nuevoProblema) {
+                              setState(() {
+                                _problemaSeleccionado = nuevoProblema;
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Sección para tomar foto
+                  Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: _tomarFoto,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue.shade800,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  icon: const Icon(Icons.camera_alt),
+                                  label: Text(
+                                    _problemaSeleccionado?.idProblema == 1
+                                        ? 'Foto Medidor'
+                                        : 'Foto Evidencia',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          if (_fotoBase64 != null)
+                            Container(
+                              width: double.infinity,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Image.memory(
+                                base64Decode(_fotoBase64!),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Sección para lectura actual
+                  if (_problemaSeleccionado?.idProblema == 1 ||
+                      _problemaSeleccionado?.idProblema == 27) ...[
+                    const SizedBox(height: 10),
+                    Card(
+                      elevation: 4,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Información de Lectura',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Layout en fila para lectura anterior y actual
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (_problemaSeleccionado?.idProblema ==
+                                              1 &&
+                                          widget.lectura.leLecturaAnterior !=
+                                              null)
+                                        _buildLecturaAnteriorItem(),
+
+                                      if (_problemaSeleccionado?.idProblema ==
+                                          27)
+                                        _buildLecturaAnteriorInput(),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(width: 10),
+
+                                // Columna derecha - Lectura Actual
+                                Expanded(child: _buildLecturaActualInput()),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 10),
+
+                  // Botón guardar
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isGuardando ? null : _guardarLectura,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: _isGuardando
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(color: Colors.white),
+                                SizedBox(width: 10),
+                                Text('Guardando...'),
+                              ],
+                            )
+                          : const Text(
+                              'Guardar Lectura',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Método para mostrar la lectura anterior (problema 1)
+  Widget _buildLecturaAnteriorItem() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.grey.shade50,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            'Lectura Anterior',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.lectura.leLecturaAnterior?.toString() ?? 'N/A',
+            style: TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue.shade900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Método para el input de lectura anterior (problema 27)
+  Widget _buildLecturaAnteriorInput() {
+    return TextFormField(
+      controller: _lecturaAnteriorController,
+      style: TextStyle(fontSize: 30),
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      decoration: InputDecoration(
+        label: const Center(child: Text('Lectura Anterior')),
+        labelStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  // Método para el input de lectura actual
+  Widget _buildLecturaActualInput() {
+    return TextFormField(
+      controller: _lecturaActualController,
+      style: TextStyle(fontSize: 30),
+      textAlign: TextAlign.center,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      decoration: InputDecoration(
+        label: const Center(child: Text('Lectura actual')),
+        labelStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -250,254 +560,10 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Información de la lectura
-                    Card(
-                      elevation: 4,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildInfoItem(
-                              'Número de Medidor',
-                              widget.lectura.leNumeroMedidor,
-                            ),
-                            _buildInfoItem('Cuenta', widget.lectura.leCuenta),
-                            _buildInfoItem(
-                              'Dirección',
-                              widget.lectura.leDireccion,
-                            ),
-                            _buildInfoItem(
-                              'ID - Nombre',
-                              '${widget.lectura.leId?.toString()} - ${widget.lectura.leNombre}',
-                            ),
-                            _buildInfoItem('Periodo', widget.lectura.lePeriodo),
-                            _buildInfoItem('Ruta', widget.lectura.leRuta),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Selector de problemas de lectura
-                    Card(
-                      elevation: 4,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Problema de Lectura',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            DropdownButtonFormField<ProblemasLectura>(
-                              value: _problemaSeleccionado,
-                              isExpanded:
-                                  true, // Esta línea resuelve el problema
-                              items: _problemas.map((problema) {
-                                return DropdownMenuItem(
-                                  value: problema,
-                                  child: Text(
-                                    '${problema.idProblema} - ${problema.plDescripcion}',
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (ProblemasLectura? nuevoProblema) {
-                                setState(() {
-                                  _problemaSeleccionado = nuevoProblema;
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 16,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Sección para tomar foto (para todos los problemas)
-                    Card(
-                      elevation: 4,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _problemaSeleccionado?.idProblema == 1
-                                  ? 'Foto del Medidor'
-                                  : 'Foto de Evidencia',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Botón para tomar foto
-                            ElevatedButton.icon(
-                              onPressed: _tomarFoto,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue.shade800,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(double.infinity, 50),
-                              ),
-                              icon: const Icon(Icons.camera_alt),
-                              label: Text(
-                                _problemaSeleccionado?.idProblema == 1
-                                    ? 'Tomar Foto del Medidor'
-                                    : 'Tomar Foto de Evidencia',
-                              ),
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            // Vista previa de la foto
-                            if (_fotoBase64 != null)
-                              Container(
-                                width: double.infinity,
-                                height: 200,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Image.memory(
-                                  base64Decode(_fotoBase64!),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Sección para lectura actual (solo para problema 1)
-                    if (_problemaSeleccionado?.idProblema == 1 ||
-                        _problemaSeleccionado?.idProblema == 27) ...[
-                      const SizedBox(height: 20),
-                      Card(
-                        elevation: 4,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Información de Lectura',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Lectura anterior
-                              if (_problemaSeleccionado?.idProblema == 1 &&
-                                  widget.lectura.leLecturaAnterior != null) ...[
-                                _buildInfoItem(
-                                  'Lectura Anterior',
-                                  widget.lectura.leLecturaAnterior.toString(),
-                                ),
-                              ],
-
-                              if (_problemaSeleccionado?.idProblema == 27) ...[
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    TextFormField(
-                                      controller: _lecturaAnteriorController,
-                                      keyboardType: TextInputType.number,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
-                                      ],
-                                      decoration: const InputDecoration(
-                                        labelText: 'Lectura Anterior',
-                                        border: OutlineInputBorder(),
-                                        prefixIcon: Icon(Icons.numbers),
-                                        hintText: 'Ingrese la lectura anterior',
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                  ],
-                                ),
-                              ],
-
-                              // Campo para lectura actual
-                              TextFormField(
-                                controller: _lecturaActualController,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                                decoration: InputDecoration(
-                                  labelText: 'Lectura Actual',
-                                  border: const OutlineInputBorder(),
-                                  prefixIcon: const Icon(Icons.numbers),
-                                  hintText:
-                                      _problemaSeleccionado?.idProblema == 1
-                                      ? 'Ingrese lectura mayor a ${widget.lectura.leLecturaAnterior ?? 0}'
-                                      : 'Ingrese lectura mayor a la anterior',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 30),
-
-                    // Botón guardar
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isGuardando ? null : _guardarLectura,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade700,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 50),
-                        ),
-                        child: _isGuardando
-                            ? const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CircularProgressIndicator(
-                                    color: Colors.white,
-                                  ),
-                                  SizedBox(width: 10),
-                                  Text('Guardando...'),
-                                ],
-                              )
-                            : const Text(
-                                'Guardar Lectura',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          : PageView(
+              controller: _pageController,
+              scrollDirection: Axis.vertical,
+              children: [_buildPrimeraPantalla(), _buildSegundaPantalla()],
             ),
     );
   }
