@@ -44,7 +44,6 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
     _lecturaActualController.dispose();
     _lecturaAnteriorController.dispose();
     _pageController.dispose();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
