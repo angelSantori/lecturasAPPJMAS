@@ -347,15 +347,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: const Text('Buscar por ID'),
                   onTap: _buscarManual,
                 ),
-
-                ListTile(
-                  leading: const Icon(Icons.refresh),
-                  title: const Text('Actualizar'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _cargarLecturas();
-                  },
-                ),
                 const Divider(),
 
                 // Opción para cerrar sesión
@@ -543,13 +534,6 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildListaLecturas(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _cargarLecturas,
-        backgroundColor: Colors.blue.shade900,
-        foregroundColor: Colors.white,
-        tooltip: 'Actualizar lecturas',
-        child: const Icon(Icons.refresh),
-      ),
     );
   }
 }
