@@ -110,9 +110,9 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
       int lecturaActual = int.parse(_lecturaActualController.text);
       int? lecturaAnterior = widget.lectura.leLecturaAnterior;
 
-      if (lecturaAnterior != null && lecturaActual <= lecturaAnterior) {
+      if (lecturaAnterior != null && lecturaActual < lecturaAnterior) {
         _mostrarMensaje(
-          'La lectura actual no puede ser menor o igual a la lectura anterior',
+          'La lectura actual no puede ser menor a la lectura anterior',
         );
         return;
       }
@@ -136,9 +136,9 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
       int lecturaAnterior = int.parse(_lecturaAnteriorController.text);
       int lecturaActual = int.parse(_lecturaActualController.text);
 
-      if (lecturaActual <= lecturaAnterior) {
+      if (lecturaActual < lecturaAnterior) {
         _mostrarMensaje(
-          'La lectura actual no puede ser menor o igual a la lectura anterior',
+          'La lectura actual no puede ser menor a la lectura anterior',
         );
         return;
       }
