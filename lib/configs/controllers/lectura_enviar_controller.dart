@@ -114,6 +114,22 @@ class LecturaEnviarController {
   }
 }
 
+DateTime? _parseFecha(dynamic fecha) {
+  if (fecha == null) return null;
+
+  if (fecha is int) {
+    return DateTime.fromMillisecondsSinceEpoch(fecha);
+  } else if (fecha is String) {
+    try {
+      return DateTime.parse(fecha);
+    } catch (e) {
+      print('Error parsing date: $fecha');
+      return null;
+    }
+  }
+  return null;
+}
+
 class LecturaEnviar {
   final int idLectEnviar;
   final String? leCuenta;
@@ -131,6 +147,7 @@ class LecturaEnviar {
   final int? idUser;
   final bool? leEstado;
   final int? leCampo17;
+  final String? leUbicacion;
   LecturaEnviar({
     required this.idLectEnviar,
     this.leCuenta,
@@ -148,6 +165,7 @@ class LecturaEnviar {
     required this.idUser,
     required this.leEstado,
     this.leCampo17,
+    this.leUbicacion,
   });
 
   LecturaEnviar copyWith({
@@ -167,6 +185,7 @@ class LecturaEnviar {
     int? idUser,
     bool? leEstado,
     int? leCampo17,
+    String? leUbicacion,
   }) {
     return LecturaEnviar(
       idLectEnviar: idLectEnviar ?? this.idLectEnviar,
@@ -185,6 +204,7 @@ class LecturaEnviar {
       idUser: idUser ?? this.idUser,
       leEstado: leEstado ?? this.leEstado,
       leCampo17: leCampo17 ?? this.leCampo17,
+      leUbicacion: leUbicacion ?? this.leUbicacion,
     );
   }
 
@@ -206,26 +226,11 @@ class LecturaEnviar {
       'idUser': idUser,
       'leEstado': leEstado,
       'leCampo17': leCampo17,
+      'leUbicacion': leUbicacion,
     };
   }
 
   factory LecturaEnviar.fromMap(Map<String, dynamic> map) {
-    DateTime? parseFecha(dynamic fecha) {
-      if (fecha == null) return null;
-
-      if (fecha is int) {
-        return DateTime.fromMillisecondsSinceEpoch(fecha);
-      } else if (fecha is String) {
-        try {
-          return DateTime.parse(fecha);
-        } catch (e) {
-          print('Error parsing date: $fecha');
-          return null;
-        }
-      }
-      return null;
-    }
-
     return LecturaEnviar(
       idLectEnviar: map['idLectEnviar'] as int,
       leCuenta: map['leCuenta'] != null ? map['leCuenta'] as String : null,
@@ -235,7 +240,7 @@ class LecturaEnviar {
           : null,
       leId: map['leId'] != null ? map['leId'] as int : null,
       lePeriodo: map['lePeriodo'] != null ? map['lePeriodo'] as String : null,
-      leFecha: parseFecha(map['leFecha']),
+      leFecha: map['leFecha'] != null ? _parseFecha(map['leFecha']) : null,
       leNumeroMedidor: map['leNumeroMedidor'] != null
           ? map['leNumeroMedidor'] as String
           : null,
@@ -255,6 +260,9 @@ class LecturaEnviar {
       idUser: map['idUser'] != null ? map['idUser'] as int : null,
       leEstado: map['leEstado'] != null ? map['leEstado'] as bool : null,
       leCampo17: map['leCampo17'] != null ? map['leCampo17'] as int : null,
+      leUbicacion: map['leUbicacion'] != null
+          ? map['leUbicacion'] as String
+          : null,
     );
   }
 
@@ -265,7 +273,7 @@ class LecturaEnviar {
 
   @override
   String toString() {
-    return 'LecturaEnviar(idLectEnviar: $idLectEnviar, leCuenta: $leCuenta, leNombre: $leNombre, leDireccion: $leDireccion, leId: $leId, lePeriodo: $lePeriodo, leFecha: $leFecha, leNumeroMedidor: $leNumeroMedidor, leLecturaAnterior: $leLecturaAnterior, leLecturaActual: $leLecturaActual, idProblemaLectura: $idProblemaLectura, leRuta: $leRuta, leFotoBase64: $leFotoBase64, idUser: $idUser, leEstado: $leEstado, leCampo17: $leCampo17)';
+    return 'LecturaEnviar(idLectEnviar: $idLectEnviar, leCuenta: $leCuenta, leNombre: $leNombre, leDireccion: $leDireccion, leId: $leId, lePeriodo: $lePeriodo, leFecha: $leFecha, leNumeroMedidor: $leNumeroMedidor, leLecturaAnterior: $leLecturaAnterior, leLecturaActual: $leLecturaActual, idProblemaLectura: $idProblemaLectura, leRuta: $leRuta, leFotoBase64: $leFotoBase64, idUser: $idUser, leEstado: $leEstado, leCampo17: $leCampo17, leUbicacion: $leUbicacion)';
   }
 
   @override
@@ -287,7 +295,8 @@ class LecturaEnviar {
         other.leFotoBase64 == leFotoBase64 &&
         other.idUser == idUser &&
         other.leEstado == leEstado &&
-        other.leCampo17 == leCampo17;
+        other.leCampo17 == leCampo17 &&
+        other.leUbicacion == leUbicacion;
   }
 
   @override
@@ -307,7 +316,8 @@ class LecturaEnviar {
         leFotoBase64.hashCode ^
         idUser.hashCode ^
         leEstado.hashCode ^
-        leCampo17.hashCode;
+        leCampo17.hashCode ^
+        leUbicacion.hashCode;
   }
 }
 

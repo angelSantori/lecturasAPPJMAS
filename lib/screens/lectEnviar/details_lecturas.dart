@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:app_lecturas_jmas/configs/controllers/lectura_enviar_controller.dart';
 import 'package:app_lecturas_jmas/configs/controllers/problemas_lectura_controller.dart';
 import 'package:app_lecturas_jmas/configs/services/auth_service.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class DetailsLecturasScreen extends StatefulWidget {
   final LELista lectura;
@@ -30,7 +34,14 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
   String? _fotoBase64;
   bool _isLoading = true;
   bool _isGuardando = false;
+  bool _isObteniendoUbicacion = false;
+  bool _botonGuardarBloqueado = false; // Nueva variable para bloquear el botón
   final PageController _pageController = PageController(viewportFraction: 0.9);
+
+  // Variables para ubicación
+  double? _latitud;
+  double? _longitud;
+  String? _ubicacionTexto;
 
   @override
   void initState() {
@@ -66,6 +77,69 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
     }
   }
 
+  Future<bool> _solicitarPermisosUbicacion() async {
+    final status = await Permission.location.request();
+    return status.isGranted;
+  }
+
+  Future<void> _obtenerUbicacionActual() async {
+    setState(() {
+      _isObteniendoUbicacion = true;
+    });
+
+    try {
+      // Solicitar permisos
+      final permisosConcedidos = await _solicitarPermisosUbicacion();
+
+      if (!permisosConcedidos) {
+        _mostrarMensaje(
+          'Se requieren permisos de ubicación para guardar la lectura',
+        );
+        setState(() {
+          _isObteniendoUbicacion = false;
+        });
+        return;
+      }
+
+      // Verificar si los servicios de ubicación están habilitados
+      bool servicioHabilitado = await Geolocator.isLocationServiceEnabled();
+      if (!servicioHabilitado) {
+        _mostrarMensaje('Por favor, activa los servicios de ubicación');
+        setState(() {
+          _isObteniendoUbicacion = false;
+        });
+        return;
+      }
+
+      // Obtener la ubicación actual
+      Position posicion = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 15),
+      );
+
+      setState(() {
+        _latitud = posicion.latitude;
+        _longitud = posicion.longitude;
+        _ubicacionTexto =
+            '${_latitud!.toStringAsFixed(6)}, ${_longitud!.toStringAsFixed(6)}';
+        _isObteniendoUbicacion = false;
+      });
+
+      print('Ubicación obtenida: $_ubicacionTexto');
+    } catch (e) {
+      print('Error al obtener ubicación: $e');
+      setState(() {
+        _isObteniendoUbicacion = false;
+      });
+
+      if (e is TimeoutException) {
+        _mostrarMensaje('Tiempo de espera agotado al obtener la ubicación');
+      } else {
+        _mostrarMensaje('Error al obtener la ubicación: $e');
+      }
+    }
+  }
+
   Future<void> _tomarFoto() async {
     final picker = ImagePicker();
     final XFile? imagen = await picker.pickImage(
@@ -83,8 +157,31 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
   }
 
   Future<void> _guardarLectura() async {
+    // Bloquear el botón inmediatamente al presionarlo
+    if (_botonGuardarBloqueado) {
+      return; // Si ya está bloqueado, no hacer nada
+    }
+
+    setState(() {
+      _botonGuardarBloqueado = true; // Bloquear el botón
+    });
+
     if (_problemaSeleccionado == null) {
       _mostrarMensaje('Selecciona un problema de lectura');
+      setState(() {
+        _botonGuardarBloqueado = false; // Desbloquear en caso de error
+      });
+      return;
+    }
+
+    await _obtenerUbicacionActual();
+
+    // Si no se pudo obtener la ubicación, no continuar
+    if (_latitud == null || _longitud == null) {
+      _mostrarMensaje('No se pudo obtener la ubicación. Intenta nuevamente.');
+      setState(() {
+        _botonGuardarBloqueado = false; // Desbloquear en caso de error
+      });
       return;
     }
 
@@ -93,6 +190,9 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
         _problemaSeleccionado!.idProblema != 27 &&
         _fotoBase64 == null) {
       _mostrarMensaje('Toma una foto como evidencia del problema');
+      setState(() {
+        _botonGuardarBloqueado = false; // Desbloquear en caso de error
+      });
       return;
     }
 
@@ -100,10 +200,16 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
     if (_problemaSeleccionado!.idProblema == 1) {
       if (_lecturaActualController.text.isEmpty) {
         _mostrarMensaje('Ingresa la lectura actual');
+        setState(() {
+          _botonGuardarBloqueado = false; // Desbloquear en caso de error
+        });
         return;
       }
       if (_fotoBase64 == null) {
         _mostrarMensaje('Toma una foto del medidor');
+        setState(() {
+          _botonGuardarBloqueado = false; // Desbloquear en caso de error
+        });
         return;
       }
 
@@ -114,6 +220,9 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
         _mostrarMensaje(
           'La lectura actual no puede ser menor a la lectura anterior',
         );
+        setState(() {
+          _botonGuardarBloqueado = false; // Desbloquear en caso de error
+        });
         return;
       }
     }
@@ -122,14 +231,23 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
     if (_problemaSeleccionado!.idProblema == 27) {
       if (_lecturaAnteriorController.text.isEmpty) {
         _mostrarMensaje('Ingresa la lectura anterior');
+        setState(() {
+          _botonGuardarBloqueado = false; // Desbloquear en caso de error
+        });
         return;
       }
       if (_lecturaActualController.text.isEmpty) {
         _mostrarMensaje('Ingresa la lectura actual');
+        setState(() {
+          _botonGuardarBloqueado = false; // Desbloquear en caso de error
+        });
         return;
       }
       if (_fotoBase64 == null) {
         _mostrarMensaje('Toma una foto del medidor');
+        setState(() {
+          _botonGuardarBloqueado = false; // Desbloquear en caso de error
+        });
         return;
       }
 
@@ -140,6 +258,9 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
         _mostrarMensaje(
           'La lectura actual no puede ser menor a la lectura anterior',
         );
+        setState(() {
+          _botonGuardarBloqueado = false; // Desbloquear en caso de error
+        });
         return;
       }
     }
@@ -182,6 +303,7 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
         idUser: user?.id_User,
         leEstado: true,
         leCampo17: widget.lectura.leCampo17,
+        leUbicacion: _ubicacionTexto,
       );
 
       final resultado = await _lecturaController.editLectEnviar(
@@ -193,13 +315,22 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
         Navigator.pop(context, true); // Regresar con éxito
       } else {
         _mostrarMensaje('Error al guardar la lectura');
+        setState(() {
+          _botonGuardarBloqueado = false; // Desbloquear en caso de error
+        });
       }
     } catch (e) {
       print('Error al guardar lectura: $e');
       _mostrarMensaje('Error: $e');
+      setState(() {
+        _botonGuardarBloqueado = false; // Desbloquear en caso de error
+      });
     } finally {
       setState(() {
         _isGuardando = false;
+        // No desbloqueamos _botonGuardarBloqueado aquí porque:
+        // - Si fue exitoso, se navega a otra pantalla
+        // - Si hubo error, ya se desbloqueó en los catch
       });
     }
   }
@@ -450,13 +581,18 @@ class _DetailsLecturasScreenState extends State<DetailsLecturasScreen> {
 
                   const SizedBox(height: 10),
 
-                  // Botón guardar
+                  // Botón guardar - Actualizado para usar _botonGuardarBloqueado
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isGuardando ? null : _guardarLectura,
+                      onPressed: (_isGuardando || _botonGuardarBloqueado)
+                          ? null
+                          : _guardarLectura,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade700,
+                        backgroundColor:
+                            (_isGuardando || _botonGuardarBloqueado)
+                            ? Colors.grey.shade400
+                            : Colors.green.shade700,
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 50),
                       ),
