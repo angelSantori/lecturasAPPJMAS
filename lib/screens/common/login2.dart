@@ -278,7 +278,7 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     ),
                                     const Text(
-                                      'v.09092025',
+                                      'v.28102025',
                                       style: TextStyle(color: Colors.grey),
                                     ),
                                   ],
