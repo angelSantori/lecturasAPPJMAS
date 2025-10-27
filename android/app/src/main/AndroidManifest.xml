@@ -2,6 +2,13 @@
     
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- Permisos para ubicación (elige los que necesites) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- Para Android 10 y superior, necesitas este permiso si accedes a la ubicación en segundo plano -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
     <application
         android:label="app_lecturas_jmas"
         android:name="${applicationName}"
